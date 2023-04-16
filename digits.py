@@ -30,7 +30,7 @@ def num(s: str) -> int|None:
         return None
 
 def print_usage():
-    print('Usage digits.py objective d1 d2 d3 d4 d5 d6')
+    print('Usage digits.py objective d1 d2 ...')
 
 def operate(a: int, b: int, op: str) -> int|None:
     if op == '+':
@@ -54,8 +54,16 @@ def last(l:List[T]) -> T|None:
     else:
         return l[-1]
 
-def distance(a:int, b: int):
-    return abs(a-b)
+def distance(obj:int, values: List[int]):
+    """distance between the nearest element of values and obj"""
+    if len(values) == 0:
+        return 0
+    d = 0
+    for v in values:
+        dist = abs(obj - v)
+        if dist < d:
+            d = dist
+    return d
 
 def compute_step(a: int, op: str, b: int, queue: List, obj: int, nums: List[int], prev_steps: List[Step]):
     result = operate(a, b, op)
@@ -65,21 +73,39 @@ def compute_step(a: int, op: str, b: int, queue: List, obj: int, nums: List[int]
             remaining.remove(a)
         if b in remaining:
             remaining.remove(b)
-        step = Step(a, op, b, result, remaining)
+        nremaining = [] + remaining + [result]
+        step = Step(a, op, b, result, nremaining)
         solution = Solution(prev_steps+[step])
-        val = distance(obj, result)
+        val = distance(obj, nremaining)
         heapq.heappush(queue, (val, solution))
 
-def compute(obj: int, nums: List[int]) -> Solution|None:
+def get_ops(nums: List[int]) -> List[Tuple[int,str,int]]:
     operators = ['+','-','*','/']
+    commutative_operators = ['+','*']
+    result = set()
+    used = set()
+    for op in operators:
+        commutative = op in commutative_operators
+        for i,x in enumerate(nums):
+            for j,y in enumerate(nums):
+                if i != j:
+                    e = (x, op, y)
+                    r = (y, op, x)
+                    if commutative and e not in used and r not in used:
+                        used.add(e)
+                        used.add(r)
+                        result.add(e)
+                    elif not commutative and e not in used:
+                        used.add(e)
+                        result.add(e)
+    return list(result)
+
+def compute(obj: int, nums: List[int]) -> Solution|None:
     queue = []
-    pairs = [(x,y) for i,x in enumerate(nums) for j,y in enumerate(nums) if i != j]
+    ops = get_ops(nums)
     #genero heap
-    for p in pairs:
-        for op in operators:
-            a = p[0]
-            b = p[1]
-            compute_step(a, op, b, queue, obj, nums, [])
+    for p in ops:
+        compute_step(p[0], p[1], p[2], queue, obj, nums, [])
     best = None
     bestDistance = None
     while len(queue) > 0:
@@ -87,34 +113,40 @@ def compute(obj: int, nums: List[int]) -> Solution|None:
         prev = item[1].steps
         last_step :Step|None = last(prev)
         if last_step is not None:
-            result = last_step.result
-            dist = distance(result, obj)
-            if bestDistance is None or dist < bestDistance:
-                best = item[1]
-                bestDistance = dist
-            if result == obj:
+            remaining = last_step.remaining
+            if obj in remaining:
                 return item[1]
+            if len(remaining) == 1:
+                d = abs(obj-remaining[0])
+                if bestDistance is None or d < bestDistance:
+                    bestDistance = d
+                    best = item[1]
             else:
                 remaining = last_step.remaining
-                for b in remaining:
-                    for op in operators:
-                        compute_step(result, op, b, queue, obj, remaining, prev)
-                        compute_step(b, op, result, queue, obj, remaining, prev)
+                ops = get_ops(remaining)
+                for p in ops:
+                    compute_step(p[0], p[1], p[2], queue, obj, remaining, prev)
     return best
 
 def main():
-    if len(sys.argv) != 8:
+    if len(sys.argv) <= 2:
         print_usage()
         return
     objective=num(sys.argv[1])
-    digits = [num(i) for i in sys.argv[2:8]]
+    digits = [num(i) for i in sys.argv[2:]]
     if objective is None or None in digits:
         print_usage()
         return
     solution = compute(objective, [i for i in digits if i is not None])
     if solution is not None:
+        found = False
         for step in solution.steps:
             print('{} {} {} = {}'.format(step.a, step.op, step.b, step.result))
+            if step.result == objective:
+                found = True
+                print('Exact match!')
+        if not found:
+            print('Best approach!')
     else:
         print('Not found')
     
