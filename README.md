@@ -1,1 +1,3 @@
-# digits
+# Digits solver
+
+**First** attempt.
