@@ -89,7 +89,7 @@ def compute(obj: int, nums: List[int]) -> Solution|None:
         if last_step is not None:
             result = last_step.result
             dist = distance(result, obj)
-            if bestDistance is None or dist < obj:
+            if bestDistance is None or dist < bestDistance:
                 best = item[1]
                 bestDistance = dist
             if result == obj:
